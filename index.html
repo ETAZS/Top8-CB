@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur Top 8 Mobile Legends</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #4c1d95, #1e3a8a, #000000);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="text-white p-6">
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        const BACKGROUND_PRESETS = {
+          gradient1: { name: '🔷 Triangles', colors: ['#1a0033', '#4a0080', '#1a0033'] },
+          gradient2: { name: '🌊 Waves', colors: ['#001f3f', '#0074D9', '#001f3f'] },
+          gradient3: { name: '🔥 Hexagons', colors: ['#2c0735', '#e8115b', '#2c0735'] },
+          gradient4: { name: '🍃 Leaves', colors: ['#0a2f1f', '#28a745', '#0a2f1f'] },
+          gradient5: { name: '⭐ Rays', colors: ['#1f1200', '#ff9500', '#1f1200'] }
+        };
+
+        function MobaTop8Generator() {
+          const canvasRef = useRef(null);
+          
+          const loadFromStorage = (key, defaultValue) => {
+            try {
+              const saved = localStorage.getItem(key);
+              return saved ? JSON.parse(saved) : defaultValue;
+            } catch {
+              return defaultValue;
+            }
+          };
+
+          const [bgType, setBgType] = useState(loadFromStorage('bgType', 'gradient1'));
+          const [bgColor, setBgColor] = useState(loadFromStorage('bgColor', '#1a0033'));
+          const [bgImage, setBgImage] = useState(null);
+          const [teamLogo, setTeamLogo] = useState(null);
+          
+          const [globalInfo, setGlobalInfo] = useState(loadFromStorage('globalInfo', {
+            teamName: 'TEAM VICTORY',
+            tournamentName: 'CHAMPIONSHIP 2024',
+            date: '15 Nov 2025'
+          }));
+
+          const roles = ['Aucun', 'Jungle', 'Roam', 'Mid', 'Exp', 'Gold'];
+          
+          const [players, setPlayers] = useState(loadFromStorage('players', [
+            { id: 1, pseudo: 'Player1', heroName: 'Hero1', role: 'Aucun', customRole: '', image: null, position: 'left2', offsetX: 0, offsetY: 0, scale: 1 },
+            { id: 2, pseudo: 'Player2', heroName: 'Hero2', role: 'Aucun', customRole: '', image: null, position: 'left1', offsetX: 0, offsetY: 0, scale: 1 },
+            { id: 3, pseudo: 'MVP', heroName: 'Hero3', role: 'Aucun', customRole: '', image: null, position: 'center', isMVP: true, offsetX: 0, offsetY: 0, scale: 1 },
+            { id: 4, pseudo: 'Player4', heroName: 'Hero4', role: 'Aucun', customRole: '', image: null, position: 'right1', offsetX: 0, offsetY: 0, scale: 1 },
+            { id: 5, pseudo: 'Player5', heroName: 'Hero5', role: 'Aucun', customRole: '', image: null, position: 'right2', offsetX: 0, offsetY: 0, scale: 1 }
+          ]));
+
+          useEffect(() => {
+            localStorage.setItem('bgType', JSON.stringify(bgType));
+            localStorage.setItem('bgColor', JSON.stringify(bgColor));
+            localStorage.setItem('globalInfo', JSON.stringify(globalInfo));
+            const playersWithoutImages = players.map(p => ({
+              ...p,
+              image: null
+            }));
+            localStorage.setItem('players', JSON.stringify(playersWithoutImages));
+          }, [bgType, bgColor, globalInfo, players]);
+
+          useEffect(() => {
+            const timer = setTimeout(() => {
+              generateImage();
+            }, 100);
+            return () => clearTimeout(timer);
+          }, [bgType, bgColor, bgImage, teamLogo, globalInfo, players]);
+
+          const clearAllData = () => {
+            if (confirm('Êtes-vous sûr de vouloir tout effacer ? Toutes les données seront perdues.')) {
+              localStorage.removeItem('bgType');
+              localStorage.removeItem('bgColor');
+              localStorage.removeItem('teamLogo');
+              localStorage.removeItem('globalInfo');
+              localStorage.removeItem('players');
+              
+              setBgType('gradient1');
+              setBgColor('#1a0033');
+              setBgImage(null);
+              setTeamLogo(null);
+              setGlobalInfo({
+                teamName: 'TEAM VICTORY',
+                tournamentName: 'CHAMPIONSHIP 2024',
+                date: '15 Nov 2025'
+              });
+              setPlayers([
+                { id: 1, pseudo: 'Player1', heroName: 'Hero1', role: 'Aucun', customRole: '', image: null, position: 'left2', offsetX: 0, offsetY: 0, scale: 1 },
+                { id: 2, pseudo: 'Player2', heroName: 'Hero2', role: 'Aucun', customRole: '', image: null, position: 'left1', offsetX: 0, offsetY: 0, scale: 1 },
+                { id: 3, pseudo: 'MVP', heroName: 'Hero3', role: 'Aucun', customRole: '', image: null, position: 'center', isMVP: true, offsetX: 0, offsetY: 0, scale: 1 },
+                { id: 4, pseudo: 'Player4', heroName: 'Hero4', role: 'Aucun', customRole: '', image: null, position: 'right1', offsetX: 0, offsetY: 0, scale: 1 },
+                { id: 5, pseudo: 'Player5', heroName: 'Hero5', role: 'Aucun', customRole: '', image: null, position: 'right2', offsetX: 0, offsetY: 0, scale: 1 }
+              ]);
+              
+              setTimeout(() => generateImage(), 100);
+            }
+          };
+
+          const handleImageUpload = (e, playerId) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                setPlayers(prev => prev.map(p => 
+                  p.id === playerId ? { ...p, image: event.target.result } : p
+                ));
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleLogoUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                setTeamLogo(event.target.result);
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleBgImageUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                setBgImage(event.target.result);
+                setBgType('image');
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const updatePlayer = (id, field, value) => {
+            setPlayers(prev => prev.map(p => 
+              p.id === id ? { ...p, [field]: value } : p
+            ));
+          };
+
+          const adjustOffsetX = (id, delta) => {
+            setPlayers(prev => prev.map(p => 
+              p.id === id ? { ...p, offsetX: p.offsetX + delta } : p
+            ));
+          };
+
+          const adjustOffsetY = (id, delta) => {
+            setPlayers(prev => prev.map(p => 
+              p.id === id ? { ...p, offsetY: p.offsetY + delta } : p
+            ));
+          };
+
+          const generateImage = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1920;
+            canvas.height = 1080;
+
+            const imagesToLoad = [];
+            
+            if (bgType === 'image' && bgImage) {
+              imagesToLoad.push(new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ type: 'bg', img });
+                img.onerror = () => resolve(null);
+                img.src = bgImage;
+              }));
+            }
+            
+            if (teamLogo) {
+              imagesToLoad.push(new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ type: 'logo', img });
+                img.onerror = () => resolve(null);
+                img.src = teamLogo;
+              }));
+            }
+            
+            players.forEach((player) => {
+              if (player.image) {
+                imagesToLoad.push(new Promise((resolve) => {
+                  const img = new Image();
+                  img.onload = () => resolve({ type: 'player', img, playerId: player.id });
+                  img.onerror = () => resolve(null);
+                  img.src = player.image;
+                }));
+              }
+            });
+
+            Promise.all(imagesToLoad).then((loadedImages) => {
+              const imageMap = {};
+              loadedImages.forEach(item => {
+                if (item) {
+                  if (item.type === 'bg') imageMap.bg = item.img;
+                  else if (item.type === 'logo') imageMap.logo = item.img;
+                  else if (item.type === 'player') imageMap[`player_${item.playerId}`] = item.img;
+                }
+              });
+              
+              drawContent(imageMap);
+            });
+
+            function drawContent(imageMap) {
+              if (bgType === 'image' && imageMap.bg) {
+                ctx.drawImage(imageMap.bg, 0, 0, 1920, 1080);
+              } else if (bgType === 'color') {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, 1920, 1080);
+              } else {
+                const preset = BACKGROUND_PRESETS[bgType];
+                const gradient = ctx.createLinearGradient(0, 0, 1920, 1080);
+                gradient.addColorStop(0, preset.colors[0]);
+                gradient.addColorStop(0.5, preset.colors[1]);
+                gradient.addColorStop(1, preset.colors[2]);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 1920, 1080);
+              }
+              
+              if (bgType.startsWith('gradient')) {
+                drawBackgroundDesign(bgType);
+              }
+              
+              function drawBackgroundDesign(design) {
+                ctx.globalAlpha = 0.15;
+                
+                if (design === 'gradient1') {
+                  for (let i = 0; i < 20; i++) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    const x = Math.random() * 1920;
+                    const y = Math.random() * 1080;
+                    const size = Math.random() * 100 + 50;
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + size, y);
+                    ctx.lineTo(x + size/2, y + size);
+                    ctx.closePath();
+                    ctx.fill();
+                  }
+                } else if (design === 'gradient2') {
+                  for (let i = 0; i < 15; i++) {
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(Math.random() * 1920, Math.random() * 1080, Math.random() * 80 + 40, 0, Math.PI * 2);
+                    ctx.fill();
+                  }
+                  ctx.strokeStyle = '#ffffff';
+                  ctx.lineWidth = 3;
+                  for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 200 + i * 200);
+                    for (let x = 0; x < 1920; x += 50) {
+                      ctx.lineTo(x, 200 + i * 200 + Math.sin(x / 100 + i) * 50);
+                    }
+                    ctx.stroke();
+                  }
+                } else if (design === 'gradient3') {
+                  const hexSize = 80;
+                  for (let y = 0; y < 1080; y += hexSize * 1.5) {
+                    for (let x = 0; x < 1920; x += hexSize * 1.8) {
+                      if (Math.random() > 0.7) {
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                          const angle = (Math.PI / 3) * i;
+                          const hx = x + hexSize * Math.cos(angle);
+                          const hy = y + hexSize * Math.sin(angle);
+                          if (i === 0) ctx.moveTo(hx, hy);
+                          else ctx.lineTo(hx, hy);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = '#ff006e';
+                        ctx.fill();
+                      }
+                    }
+                  }
+                } else if (design === 'gradient4') {
+                  for (let i = 0; i < 30; i++) {
+                    const x = Math.random() * 1920;
+                    const y = Math.random() * 1080;
+                    const size = Math.random() * 60 + 30;
+                    ctx.fillStyle = '#00ff88';
+                    ctx.beginPath();
+                    ctx.ellipse(x, y, size, size * 2, Math.random() * Math.PI, 0, Math.PI * 2);
+                    ctx.fill();
+                  }
+                } else if (design === 'gradient5') {
+                  ctx.strokeStyle = '#ffaa00';
+                  ctx.lineWidth = 2;
+                  const centerX = 1920 / 2;
+                  const centerY = 1080 / 2;
+                  for (let i = 0; i < 30; i++) {
+                    const angle = (Math.PI * 2 / 30) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.lineTo(centerX + Math.cos(angle) * 1500, centerY + Math.sin(angle) * 1500);
+                    ctx.stroke();
+                  }
+                  ctx.fillStyle = '#ffff00';
+                  for (let i = 0; i < 20; i++) {
+                    const x = Math.random() * 1920;
+                    const y = Math.random() * 1080;
+                    ctx.beginPath();
+                    for (let j = 0; j < 5; j++) {
+                      const angle = (Math.PI * 2 / 5) * j - Math.PI / 2;
+                      const radius = j % 2 === 0 ? 20 : 10;
+                      const px = x + Math.cos(angle) * radius;
+                      const py = y + Math.sin(angle) * radius;
+                      if (j === 0) ctx.moveTo(px, py);
+                      else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                  }
+                }
+                
+                ctx.globalAlpha = 1;
+              }
+
+              const positions = {
+                left2: { x: 250, y: 920, scale: 0.85, zIndex: 1 },
+                left1: { x: 550, y: 870, scale: 1.0, zIndex: 2 },
+                center: { x: 960, y: 820, scale: 1.3, zIndex: 3 },
+                right1: { x: 1370, y: 870, scale: 1.0, zIndex: 2 },
+                right2: { x: 1670, y: 920, scale: 0.85, zIndex: 1 }
+              };
+
+              const sortedPlayers = [...players].sort((a, b) => 
+                positions[a.position].zIndex - positions[b.position].zIndex
+              );
+
+              const topLimit = 160;
+
+              sortedPlayers.forEach(player => {
+                const pos = positions[player.position];
+                const baseHeight = 850;
+                const targetHeight = baseHeight * pos.scale;
+                const maxWidth = 400 * pos.scale;
+
+                ctx.save();
+
+                if (player.image && imageMap[`player_${player.id}`]) {
+                  const img = imageMap[`player_${player.id}`];
+                  
+                  const imgRatio = img.width / img.height;
+                  const drawHeight = targetHeight * player.scale;
+                  const drawWidth = drawHeight * imgRatio;
+                  
+                  const actualTop = pos.y - drawHeight + player.offsetY;
+                  const clipTop = Math.max(actualTop, topLimit);
+                  const clipHeight = Math.min(drawHeight, pos.y - clipTop);
+                  
+                  const cornerRadius = 30;
+                  ctx.beginPath();
+                  const rectX = pos.x - maxWidth/2;
+                  const rectY = clipTop;
+                  const rectW = maxWidth;
+                  const rectH = clipHeight;
+                  
+                  ctx.moveTo(rectX + cornerRadius, rectY);
+                  ctx.lineTo(rectX + rectW - cornerRadius, rectY);
+                  ctx.arcTo(rectX + rectW, rectY, rectX + rectW, rectY + cornerRadius, cornerRadius);
+                  ctx.lineTo(rectX + rectW, rectY + rectH - cornerRadius);
+                  ctx.arcTo(rectX + rectW, rectY + rectH, rectX + rectW - cornerRadius, rectY + rectH, cornerRadius);
+                  ctx.lineTo(rectX + cornerRadius, rectY + rectH);
+                  ctx.arcTo(rectX, rectY + rectH, rectX, rectY + rectH - cornerRadius, cornerRadius);
+                  ctx.lineTo(rectX, rectY + cornerRadius);
+                  ctx.arcTo(rectX, rectY, rectX + cornerRadius, rectY, cornerRadius);
+                  ctx.closePath();
+                  ctx.clip();
+                  
+                  ctx.drawImage(
+                    img, 
+                    pos.x - drawWidth/2 + player.offsetX, 
+                    pos.y - drawHeight + player.offsetY, 
+                    drawWidth, 
+                    drawHeight
+                  );
+                } else {
+                  const width = maxWidth * 0.7;
+                  const clipTop = Math.max(pos.y - targetHeight, topLimit);
+                  const clipHeight = Math.min(targetHeight, pos.y - clipTop);
+                  
+                  const cornerRadius = 30;
+                  const rectX = pos.x - width/2;
+                  const rectY = clipTop;
+                  
+                  ctx.fillStyle = 'rgba(100, 100, 100, 0.3)';
+                  ctx.beginPath();
+                  ctx.moveTo(rectX + cornerRadius, rectY);
+                  ctx.lineTo(rectX + width - cornerRadius, rectY);
+                  ctx.arcTo(rectX + width, rectY, rectX + width, rectY + cornerRadius, cornerRadius);
+                  ctx.lineTo(rectX + width, rectY + clipHeight - cornerRadius);
+                  ctx.arcTo(rectX + width, rectY + clipHeight, rectX + width - cornerRadius, rectY + clipHeight, cornerRadius);
+                  ctx.lineTo(rectX + cornerRadius, rectY + clipHeight);
+                  ctx.arcTo(rectX, rectY + clipHeight, rectX, rectY + clipHeight - cornerRadius, cornerRadius);
+                  ctx.lineTo(rectX, rectY + cornerRadius);
+                  ctx.arcTo(rectX, rectY, rectX + cornerRadius, rectY, cornerRadius);
+                  ctx.closePath();
+                  ctx.fill();
+                  
+                  ctx.strokeStyle = '#666';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                }
+                
+                ctx.restore();
+
+                const textY = pos.y + 40;
+                const fontSize = 40 * pos.scale;
+                
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(player.pseudo, pos.x, textY);
+                
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 15;
+                ctx.font = `${fontSize * 0.7}px Arial`;
+                ctx.fillStyle = '#ffccff';
+                ctx.fillText(player.heroName, pos.x, textY + 45);
+                
+                const displayRole = player.customRole || (player.role !== 'Aucun' ? player.role : '');
+                if (displayRole) {
+                  ctx.shadowColor = '#ffcc00';
+                  ctx.shadowBlur = 15;
+                  ctx.fillStyle = '#ffffaa';
+                  ctx.fillText(displayRole, pos.x, textY + 85);
+                }
+
+                if (player.isMVP) {
+                  ctx.shadowColor = '#ffcc00';
+                  ctx.shadowBlur = 30;
+                  ctx.fillStyle = '#ffcc00';
+                  ctx.font = 'bold 48px Arial';
+                  ctx.textAlign = 'center';
+                  const mvpY = Math.max(pos.y - targetHeight - 30, topLimit - 10);
+                  ctx.fillText('★ MVP ★', pos.x, mvpY);
+                }
+                
+                ctx.shadowBlur = 0;
+              });
+
+              ctx.shadowColor = '#00ffff';
+              ctx.shadowBlur = 25;
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 56px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText(globalInfo.tournamentName, 960, 80);
+
+              ctx.shadowColor = '#ff00ff';
+              ctx.shadowBlur = 20;
+              ctx.font = '36px Arial';
+              ctx.fillStyle = '#ffccff';
+              ctx.textAlign = 'left';
+              ctx.fillText(globalInfo.date, 50, 80);
+
+              const bottomY = 1050;
+              ctx.shadowColor = '#ffcc00';
+              ctx.shadowBlur = 30;
+              ctx.font = 'bold 64px Arial';
+              ctx.fillStyle = '#ffcc00';
+              ctx.textAlign = 'center';
+              ctx.fillText(globalInfo.teamName, 960, bottomY);
+
+              if (teamLogo && imageMap.logo) {
+                const logoSize = 220;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = 'rgba(255, 204, 0, 0.6)';
+                ctx.drawImage(imageMap.logo, 1920 - logoSize - 50, 40, logoSize, logoSize);
+                ctx.shadowBlur = 0;
+              }
+            }
+          };
+
+          const downloadImage = () => {
+            generateImage();
+            setTimeout(() => {
+              const canvas = canvasRef.current;
+              const link = document.createElement('a');
+              link.download = `${globalInfo.teamName}_Top8.png`;
+              link.href = canvas.toDataURL();
+              link.click();
+            }, 500);
+          };
+
+          return (
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-pink-500">
+                  🏆 Générateur Top 8 Mobile Legends
+                </h1>
+                <button
+                  onClick={clearAllData}
+                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                >
+                  🗑️ Tout effacer
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+                    <h2 className="text-2xl font-bold mb-4">📋 Informations Globales</h2>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Nom de l'équipe"
+                        value={globalInfo.teamName}
+                        onChange={(e) => setGlobalInfo({...globalInfo, teamName: e.target.value})}
+                        className="w-full bg-white/20 rounded px-4 py-2 text-white placeholder-gray-300"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Nom du tournoi"
+                        value={globalInfo.tournamentName}
+                        onChange={(e) => setGlobalInfo({...globalInfo, tournamentName: e.target.value})}
+                        className="w-full bg-white/20 rounded px-4 py-2 text-white placeholder-gray-300"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Date"
+                        value={globalInfo.date}
+                        onChange={(e) => setGlobalInfo({...globalInfo, date: e.target.value})}
+                        className="w-full bg-white/20 rounded px-4 py-2 text-white placeholder-gray-300"
+                      />
+                      <div>
+                        <label className="block mb-2 text-sm">Logo de l'équipe</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="w-full text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+                    <h2 className="text-2xl font-bold mb-4">🎨 Fond d'écran</h2>
+                    <div className="space-y-3">
+                      <label className="text-sm text-gray-300">Fonds prédéfinis:</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(BACKGROUND_PRESETS).map(([key, preset]) => (
+                          <button
+                            key={key}
+                            onClick={() => setBgType(key)}
+                            className={`p-3 rounded text-sm ${bgType === key ? 'bg-purple-600 ring-2 ring-yellow-400' : 'bg-white/20'}`}
+                            style={{
+                              background: bgType === key ? undefined : `linear-gradient(135deg, ${preset.colors[0]}, ${preset.colors[1]})`
+                            }}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      <div className="pt-3 border-t border-white/20">
+                        <button
+                          onClick={() => setBgType('color')}
+                          className={`w-full py-2 rounded mb-2 ${bgType === 'color' ? 'bg-purple-600' : 'bg-white/20'}`}
+                        >
+                          Couleur personnalisée
+                        </button>
+                        {bgType === 'color' && (
+                          <input
+                            type="color"
+                            value={bgColor}
+                            onChange={(e) => setBgColor(e.target.value)}
+                            className="w-full h-12 rounded cursor-pointer"
+                          />
+                        )}
+                      </div>
+                      
+                      <div className="pt-3 border-t border-white/20">
+                        <label className="block mb-2 text-sm">Ou importer une image:</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBgImageUpload}
+                          className="w-full text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+                    <h2 className="text-2xl font-bold mb-4">👥 Joueurs</h2>
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {players.map(player => (
+                        <div key={player.id} className={`p-4 rounded ${player.isMVP ? 'bg-yellow-600/30 border-2 border-yellow-400' : 'bg-white/10'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold">{player.isMVP ? '⭐ MVP' : `Joueur ${player.id}`}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageUpload(e, player.id)}
+                              className="text-xs"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Pseudo"
+                              value={player.pseudo}
+                              onChange={(e) => updatePlayer(player.id, 'pseudo', e.target.value)}
+                              className="w-full bg-white/20 rounded px-3 py-1 text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Nom du héros"
+                              value={player.heroName}
+                              onChange={(e) => updatePlayer(player.id, 'heroName', e.target.value)}
+                              className="w-full bg-white/20 rounded px-3 py-1 text-sm"
+                            />
+                            <select
+                              value={player.role}
+                              onChange={(e) => updatePlayer(player.id, 'role', e.target.value)}
+                              className="w-full bg-white/20 rounded px-3 py-1 text-sm text-white"
+                            >
+                              {roles.map(role => (
+                                <option key={role} value={role} className="bg-gray-800">{role}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Rôle personnalisé (optionnel)"
+                              value={player.customRole || ''}
+                              onChange={(e) => updatePlayer(player.id, 'customRole', e.target.value)}
+                              className="w-full bg-white/20 rounded px-3 py-1 text-sm text-gray-300 italic"
+                            />
+                            
+                            {player.image && (
+                              <div className="space-y-2 mt-3 pt-3 border-t border-white/20">
+                                <label className="text-xs text-gray-300">Cadrage horizontal:</label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => adjustOffsetX(player.id, -20)}
+                                    className="p-2 bg-white/20 rounded hover:bg-white/30"
+                                  >
+                                    ←
+                                  </button>
+                                  <span className="flex-1 text-center text-sm">{player.offsetX}px</span>
+                                  <button
+                                    onClick={() => adjustOffsetX(player.id, 20)}
+                                    className="p-2 bg-white/20 rounded hover:bg-white/30"
+                                  >
+                                    →
+                                  </button>
+                                </div>
+                                
+                                <label className="text-xs text-gray-300">Cadrage vertical:</label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => adjustOffsetY(player.id, -20)}
+                                    className="p-2 bg-white/20 rounded hover:bg-white/30"
+                                  >
+                                    ↑
+                                  </button>
+                                  <span className="flex-1 text-center text-sm">{player.offsetY}px</span>
+                                  <button
+                                    onClick={() => adjustOffsetY(player.id, 20)}
+                                    className="p-2 bg-white/20 rounded hover:bg-white/30"
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+                                
+                                <label className="text-xs text-gray-300">Zoom:</label>
+                                <input
+                                  type="range"
+                                  min="0.5"
+                                  max="2"
+                                  step="0.1"
+                                  value={player.scale}
+                                  onChange={(e) => updatePlayer(player.id, 'scale', parseFloat(e.target.value))}
+                                  className="w-full"
+                                />
+                                <div className="text-xs text-center text-gray-400">{player.scale.toFixed(1)}x</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={downloadImage}
+                    className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 py-4 rounded-lg font-bold text-xl flex items-center justify-center gap-3 transition-all"
+                  >
+                    💾 Télécharger l'image
+                  </button>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+                  <h2 className="text-2xl font-bold mb-4">👁️ Aperçu</h2>
+                  <div className="bg-black rounded-lg overflow-hidden">
+                    <canvas
+                      ref={canvasRef}
+                      className="w-full h-auto"
+                      onClick={generateImage}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400 mt-2 text-center">
+                    Clique sur l'aperçu pour actualiser
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        ReactDOM.render(<MobaTop8Generator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
